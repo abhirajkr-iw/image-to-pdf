@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pressroom — Images to PDF</title>
+<meta name="description" content="Convert images to a single PDF, entirely in your browser. Nothing is uploaded." />
+
+<!-- Fonts (cached after first load; system fallbacks keep the app working offline regardless) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<!-- Libraries -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js" defer></script>
+
+<link rel="stylesheet" href="styles.css" />
+
+<!-- App modules (classic scripts, ordered; each attaches to the I2P namespace) -->
+<script src="ui.js" defer></script>
+<script src="crop.js" defer></script>
+<script src="preview.js" defer></script>
+<script src="pdf.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<a class="skip-link" href="#imageGrid">Skip to image list</a>
+
+<!-- ======================= HEADER / TOOLBAR ======================= -->
+<header class="topbar" role="banner">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true">
+      <path d="M4 1v6M1 4h6M24 1v6M21 4h6M4 21v6M1 24h6M24 21v6M21 24h6" stroke="currentColor" stroke-width="2" fill="none"/>
+      <rect x="9" y="9" width="10" height="10" fill="currentColor"/>
+    </svg>
+    <div class="brand-text">
+      <span class="brand-name">Pressroom</span>
+      <span class="brand-sub">images&nbsp;→&nbsp;PDF, in your browser</span>
+    </div>
+  </div>
+
+  <div class="toolbar" role="toolbar" aria-label="Document actions">
+    <span class="count-chip" id="countChip" aria-live="polite">0 images</span>
+    <button type="button" class="btn btn-ghost" id="btnClear" aria-label="Remove all images" disabled>Clear all</button>
+    <button type="button" class="btn btn-secondary" id="btnAdd">
+      <span aria-hidden="true">＋</span> Add images
+    </button>
+  </div>
+</header>
+
+<div class="workbench">
+
+  <!-- ======================= MAIN: DROPZONE + GRID ======================= -->
+  <main class="bench-main" id="main">
+
+    <section class="dropzone" id="dropzone" tabindex="0" role="button"
+             aria-label="Add images: click, press Enter, drag and drop, or paste from clipboard">
+      <span class="cropmark tl" aria-hidden="true"></span>
+      <span class="cropmark tr" aria-hidden="true"></span>
+      <span class="cropmark bl" aria-hidden="true"></span>
+      <span class="cropmark br" aria-hidden="true"></span>
+      <div class="dz-inner">
+        <p class="dz-title">Drop images on the bench</p>
+        <p class="dz-sub">or click to browse · paste with <kbd>Ctrl</kbd>+<kbd>V</kbd></p>
+        <p class="dz-formats">JPG · JPEG · PNG · WEBP</p>
+      </div>
+    </section>
+
+    <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden />
+
+    <p class="grid-hint" id="gridHint" hidden>Drag cards to set page order. Order here is the order in the PDF.</p>
+
+    <ul class="image-grid" id="imageGrid" aria-label="Selected images, drag to reorder"></ul>
+  </main>
+
+  <!-- ======================= SIDEBAR: PDF SETTINGS ======================= -->
+  <aside class="sidebar" aria-label="PDF settings">
+    <div class="sidebar-scroll">
+
+      <h2 class="side-title">PDF setup</h2>
+
+      <!-- Page -->
+      <section class="panel" aria-labelledby="hPage">
+        <h3 class="panel-h" id="hPage">Page</h3>
+        <div class="field">
+          <label for="pageSize">Page size</label>
+          <select id="pageSize">
+            <option value="a4" selected>A4 (210 × 297 mm)</option>
+            <option value="letter">Letter (216 × 279 mm)</option>
+            <option value="legal">Legal (216 × 356 mm)</option>
+            <option value="a3">A3 (297 × 420 mm)</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </div>
+        <div class="field-row" id="customSizeRow" hidden>
+          <div class="field">
+            <label for="customW">Width (mm)</label>
+            <input type="number" id="customW" min="30" max="2000" value="210" />
+          </div>
+          <div class="field">
+            <label for="customH">Height (mm)</label>
+            <input type="number" id="customH" min="30" max="2000" value="297" />
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label" id="orientLabel">Orientation</span>
+          <div class="seg" role="radiogroup" aria-labelledby="orientLabel">
+            <label class="seg-opt"><input type="radio" name="orientation" value="portrait" checked /><span>Portrait</span></label>
+            <label class="seg-opt"><input type="radio" name="orientation" value="landscape" /><span>Landscape</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="margin">Margins — <output id="marginOut">10</output> mm</label>
+          <input type="range" id="margin" min="0" max="40" step="1" value="10" />
+        </div>
+        <div class="field">
+          <label for="bgSelect">Page background</label>
+          <div class="field-row">
+            <select id="bgSelect">
+              <option value="#ffffff" selected>White</option>
+              <option value="#808080">Gray</option>
+              <option value="#000000">Black</option>
+              <option value="custom">Custom…</option>
+            </select>
+            <input type="color" id="bgCustom" value="#f2e9d8" aria-label="Custom background color" hidden />
+          </div>
+        </div>
+      </section>
+
+      <!-- Layout -->
+      <section class="panel" aria-labelledby="hLayout">
+        <h3 class="panel-h" id="hLayout">Layout</h3>
+        <div class="field">
+          <span class="field-label" id="ippLabel">Images per page</span>
+          <div class="seg seg-5" role="radiogroup" aria-labelledby="ippLabel">
+            <label class="seg-opt"><input type="radio" name="perPage" value="1" checked /><span>1</span></label>
+            <label class="seg-opt"><input type="radio" name="perPage" value="2" /><span>2</span></label>
+            <label class="seg-opt"><input type="radio" name="perPage" value="4" /><span>4</span></label>
+            <label class="seg-opt"><input type="radio" name="perPage" value="6" /><span>6</span></label>
+            <label class="seg-opt"><input type="radio" name="perPage" value="9" /><span>9</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="fitMode">Image fit</label>
+          <select id="fitMode">
+            <option value="fit" selected>Fit — whole image, may leave space</option>
+            <option value="fill">Fill — cover the slot, crops edges</option>
+            <option value="stretch">Stretch — distorts to fill exactly</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Quality -->
+      <section class="panel" aria-labelledby="hQuality">
+        <h3 class="panel-h" id="hQuality">Compression</h3>
+        <div class="field">
+          <label for="quality">Image quality — <output id="qualityOut">80</output>%</label>
+          <input type="range" id="quality" min="10" max="100" step="5" value="80" />
+        </div>
+        <p class="estimate" id="estimate" aria-live="polite">Estimated PDF size: —</p>
+      </section>
+
+      <!-- Page numbers -->
+      <section class="panel" aria-labelledby="hNumbers">
+        <h3 class="panel-h" id="hNumbers">Page numbers</h3>
+        <div class="field">
+          <label for="pnPos">Position</label>
+          <select id="pnPos">
+            <option value="none" selected>None</option>
+            <option value="bottom-center">Bottom center</option>
+            <option value="bottom-right">Bottom right</option>
+            <option value="top-right">Top right</option>
+          </select>
+        </div>
+        <div class="field-row pn-extra" hidden>
+          <div class="field">
+            <label for="pnSize">Font size (pt)</label>
+            <input type="number" id="pnSize" min="6" max="36" value="10" />
+          </div>
+          <div class="field">
+            <label for="pnColor">Color</label>
+            <input type="color" id="pnColor" value="#333333" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Watermark -->
+      <section class="panel" aria-labelledby="hWm">
+        <h3 class="panel-h" id="hWm">Watermark</h3>
+        <div class="field">
+          <label class="check"><input type="checkbox" id="wmOn" /> <span>Add text watermark</span></label>
+        </div>
+        <div class="wm-extra" hidden>
+          <div class="field">
+            <label for="wmText">Text</label>
+            <input type="text" id="wmText" value="CONFIDENTIAL" maxlength="60" />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="wmSize">Font size (pt)</label>
+              <input type="number" id="wmSize" min="8" max="120" value="42" />
+            </div>
+            <div class="field">
+              <label for="wmRot">Rotation (°)</label>
+              <input type="number" id="wmRot" min="-90" max="90" value="45" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="wmOpacity">Opacity — <output id="wmOpacityOut">20</output>%</label>
+            <input type="range" id="wmOpacity" min="5" max="100" step="5" value="20" />
+          </div>
+          <div class="field">
+            <label for="wmPos">Position</label>
+            <select id="wmPos">
+              <option value="center" selected>Center</option>
+              <option value="top-left">Top left</option>
+              <option value="top-right">Top right</option>
+              <option value="bottom-left">Bottom left</option>
+              <option value="bottom-right">Bottom right</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- File -->
+      <section class="panel" aria-labelledby="hFile">
+        <h3 class="panel-h" id="hFile">File</h3>
+        <div class="field">
+          <label for="filename">Filename</label>
+          <div class="filename-row">
+            <input type="text" id="filename" value="images" spellcheck="false"
+                   aria-describedby="filenameExt" />
+            <span class="filename-ext" id="filenameExt">.pdf</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Sticky action footer -->
+    <div class="sidebar-actions">
+      <button type="button" class="btn btn-primary btn-big" id="btnGenerate" disabled>Generate PDF</button>
+      <button type="button" class="btn btn-secondary btn-big" id="btnDownload" disabled>Download PDF</button>
+    </div>
+  </aside>
+</div>
+
+<!-- ======================= CROP MODAL ======================= -->
+<div class="modal" id="cropModal" role="dialog" aria-modal="true" aria-labelledby="cropTitle" hidden>
+  <div class="modal-card modal-wide">
+    <header class="modal-head">
+      <h2 id="cropTitle">Crop image</h2>
+      <button type="button" class="icon-btn" data-close="cropModal" aria-label="Close crop tool">✕</button>
+    </header>
+    <div class="crop-stage"><img id="cropImage" alt="Image being cropped" /></div>
+    <div class="crop-ratios seg" role="radiogroup" aria-label="Aspect ratio">
+      <label class="seg-opt"><input type="radio" name="cropRatio" value="free" checked /><span>Free</span></label>
+      <label class="seg-opt"><input type="radio" name="cropRatio" value="1" /><span>1 : 1</span></label>
+      <label class="seg-opt"><input type="radio" name="cropRatio" value="1.3333" /><span>4 : 3</span></label>
+      <label class="seg-opt"><input type="radio" name="cropRatio" value="1.7778" /><span>16 : 9</span></label>
+    </div>
+    <footer class="modal-foot">
+      <button type="button" class="btn btn-ghost" id="cropReset">Reset</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-secondary" data-close="cropModal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="cropApply">Crop</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ======================= ZOOM / LIGHTBOX MODAL ======================= -->
+<div class="modal" id="zoomModal" role="dialog" aria-modal="true" aria-labelledby="zoomTitle" hidden>
+  <div class="modal-card modal-wide">
+    <header class="modal-head">
+      <h2 id="zoomTitle">Image preview</h2>
+      <button type="button" class="icon-btn" data-close="zoomModal" aria-label="Close image preview">✕</button>
+    </header>
+    <div class="zoom-stage" id="zoomStage"><img id="zoomImage" alt="" /></div>
+    <footer class="modal-foot">
+      <button type="button" class="btn btn-secondary" id="zoomOut" aria-label="Zoom out">−</button>
+      <output class="zoom-level" id="zoomLevel" aria-live="polite">100%</output>
+      <button type="button" class="btn btn-secondary" id="zoomIn" aria-label="Zoom in">＋</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-ghost" data-close="zoomModal">Done</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ======================= PDF PREVIEW MODAL ======================= -->
+<div class="modal" id="pdfModal" role="dialog" aria-modal="true" aria-labelledby="pdfTitle" hidden>
+  <div class="modal-card modal-full" id="pdfModalCard">
+    <header class="modal-head">
+      <h2 id="pdfTitle">PDF preview</h2>
+      <button type="button" class="icon-btn" data-close="pdfModal" aria-label="Close PDF preview">✕</button>
+    </header>
+    <div class="pdf-stage" id="pdfStage">
+      <iframe id="pdfFrame" title="Generated PDF preview"></iframe>
+    </div>
+    <footer class="modal-foot pdf-controls">
+      <button type="button" class="btn btn-secondary" id="pdfPrev" aria-label="Previous page">‹ Prev</button>
+      <output class="pdf-pageinfo" id="pdfPageInfo" aria-live="polite">Page 1 / 1</output>
+      <button type="button" class="btn btn-secondary" id="pdfNext" aria-label="Next page">Next ›</button>
+      <span class="divider" aria-hidden="true"></span>
+      <button type="button" class="btn btn-secondary" id="pdfZoomOut" aria-label="Zoom out">−</button>
+      <button type="button" class="btn btn-secondary" id="pdfZoomIn" aria-label="Zoom in">＋</button>
+      <button type="button" class="btn btn-secondary" id="pdfFullscreen">Full screen</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-ghost" data-close="pdfModal">Back to editing</button>
+      <button type="button" class="btn btn-primary" id="pdfDownload">Download PDF</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ======================= PROGRESS OVERLAY ======================= -->
+<div class="progress-overlay" id="progressOverlay" role="alert" aria-live="assertive" hidden>
+  <div class="progress-card">
+    <div class="spinner" aria-hidden="true"></div>
+    <p class="progress-label" id="progressLabel">Setting pages…</p>
+    <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+    <p class="progress-pct" id="progressPct">0%</p>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
+
+</body>
+</html>
