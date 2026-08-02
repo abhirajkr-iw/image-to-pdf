@@ -1,4 +1,4 @@
-# Pressroom — Images to PDF
+# Images to PDF
 
 Convert images into a single PDF, entirely in your browser. Nothing is uploaded — all decoding, editing, and PDF generation happens client-side.
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-"Pressroom" — a fully client-side images→PDF converter. Vanilla JS static site: no build step, no package manager, no tests, no framework. Libraries (jsPDF, SortableJS, Cropper.js) load from cdnjs via `<script>` tags in `index.html`.
+"Images to PDF" — a fully client-side images→PDF converter. Vanilla JS static site: no build step, no package manager, no tests, no framework. Libraries (jsPDF, SortableJS, Cropper.js) load from cdnjs via `<script>` tags in `index.html`.
 
 ## Running
 
